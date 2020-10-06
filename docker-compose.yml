@@ -1,0 +1,72 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:1.18-alpine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/uwsgi_params:/etc/nginx/uwsgi_params
+      - ./static:/static
+    depends_on:
+      - api
+    networks:
+      sample1_link:
+        aliases:
+          - local.swagger.api
+
+  db:
+    image: mysql:5.7
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sample1
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      TZ: 'Asia/Tokyo'
+    volumes:
+      - ./mysql:/var/lib/mysql
+      - ./sql_initdb:/docker-entrypoint-initdb.d
+
+  api:
+    build: ./src/api
+    container_name: "sample1_api"
+    # command: uwsgi --socket :8001 --module app.wsgi --py-autoreload 1 --logto /tmp/mylog.log
+    tty: true
+    volumes:
+      - ./src/api:/code
+      - ./static:/static
+    ports:
+      - "8001:8080"
+    depends_on:
+      - db
+    networks:
+      sample1_link:
+        aliases:
+          - local.swagger.apisprout
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: "swagger-ui"
+    ports:
+      - "8002:8080"
+    volumes:
+      - /src/openapi/openapi.yaml:/openapi.yaml
+    environment:
+      SWAGGER_JSON: /openapi.yaml
+
+  openapi-cli:
+     image: openapitools/openapi-generator-cli
+     container_name: "openapi-cli"
+     volumes:
+      - /src:/local
+      - /src/openapi:/local/openapi
+      - /src/api:/local/api
+
+
+networks:
+  sample1_link:
+    external: true
