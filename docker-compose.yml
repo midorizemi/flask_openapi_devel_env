@@ -6,15 +6,14 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/conf/app-nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/uwsgi_params:/etc/nginx/uwsgi_params
       - ./static:/static
     depends_on:
-      - api
-    networks:
-      sample1_link:
-        aliases:
-          - local.swagger.api
+      - sample1_api
+    links:
+      - sample1_api
+    # command: nginx -c /etc/nginx/nginx.conf
 
   db:
     image: mysql:5.7
@@ -31,22 +30,20 @@ services:
       - ./mysql:/var/lib/mysql
       - ./sql_initdb:/docker-entrypoint-initdb.d
 
-  api:
+  sample1_api:
     build: ./src/api
     container_name: "sample1_api"
-    # command: uwsgi --socket :8001 --module app.wsgi --py-autoreload 1 --logto /tmp/mylog.log
+    command: uwsgi --socket :8001 --module openapi_server --py-autoreload 1 --logto /tmp/mylog.log
     tty: true
     volumes:
       - ./src/api:/code
       - ./static:/static
+    expose:
+      - "8001"
     ports:
-      - "8001:8080"
+      - "8001:8001"
     depends_on:
       - db
-    networks:
-      sample1_link:
-        aliases:
-          - local.swagger.apisprout
 
   swagger-ui:
     image: swaggerapi/swagger-ui
@@ -54,9 +51,9 @@ services:
     ports:
       - "8002:8080"
     volumes:
-      - /src/openapi/openapi.yaml:/openapi.yaml
+      - ./src/openapi/sample1_api.yaml:/usr/share/nginx/html/sample1_api.yaml
     environment:
-      SWAGGER_JSON: /openapi.yaml
+      API_URL: sample1_api.yaml
 
   openapi-cli:
      image: openapitools/openapi-generator-cli
@@ -66,7 +63,3 @@ services:
       - /src/openapi:/local/openapi
       - /src/api:/local/api
 
-
-networks:
-  sample1_link:
-    external: true

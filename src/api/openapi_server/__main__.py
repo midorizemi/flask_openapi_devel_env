@@ -3,6 +3,7 @@
 import connexion
 
 from openapi_server import encoder
+from openapi_server.database import db
 
 
 def main():
@@ -11,7 +12,8 @@ def main():
     app.add_api('openapi.yaml',
                 arguments={'title': 'Swagger Petstore'},
                 pythonic_params=True)
-    app.run(port=8080)
+    app.run(port=8001)
+    db.init_app(app)
 
 
 if __name__ == '__main__':
